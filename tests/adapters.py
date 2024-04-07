@@ -6,7 +6,7 @@ from typing import IO, BinaryIO, Iterable, Optional, Type
 
 import numpy.typing as npt
 import torch
-
+from cs336_basics.train_bpe import train_bpe
 
 def run_positionwise_feedforward(
     d_model: int,
