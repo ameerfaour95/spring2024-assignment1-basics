@@ -1,6 +1,9 @@
 # pytest /home/groups/candes/zitong/cs336-assignment1-basics/tests/test_train_bpe.py
 import regex as re
 from typing import Iterable
+from tqdm import tqdm
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 from cs336_basics.utils import GPT2_PRETOKENIZER_PATTERN
 
@@ -16,7 +19,8 @@ def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
     new_byte_tuple = prefix + (b"".join(tomerge),) + suffix
     return new_byte_tuple, prefix, suffix
 
-def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
+def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
+              progress_bar: bool = False):
     """
     Train a byte pair encoding tokenizer on the input text file.
 
@@ -41,26 +45,27 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
     for token in special_tokens:
         text = text.replace(token, "")
     
-    # Initialize pre-token frequency table
+    logging.info("Initializing pretoken frequency table")
     pretoken_freq = {}
-    for pretoken in re.findall(GPT2_PRETOKENIZER_PATTERN, text):
+    pretokes = re.findall(GPT2_PRETOKENIZER_PATTERN, text)
+    for pretoken in tqdm(pretokes, disable=not progress_bar):
         pretoken_tuple = tuple([bytes([b]) for b in tuple(pretoken.encode("utf-8"))])
         if pretoken_tuple not in pretoken_freq:
             pretoken_freq[pretoken_tuple] = 0
         pretoken_freq[pretoken_tuple] += 1
     
-    # Initialize pair frequency table
+    logging.info("Initializing byte pair frequency table")
     pair_freq = {}
-    for pretoken_tuple, freq in pretoken_freq.items():
+    for pretoken_tuple, freq in tqdm(pretoken_freq.items(), disable=not progress_bar):
         for i in range(len(pretoken_tuple) - 1):
             pair = pretoken_tuple[i:i+2]
             if pair not in pair_freq:
                 pair_freq[pair] = 0
             pair_freq[pair] += freq
     
+    logging.info("Performing BPE algorithm")
+    pbar = tqdm(total=vocab_size) if progress_bar else None
     merges = []
-
-    # Perform the BPE algorithm
     while len(vocab) < vocab_size:
         # Find the most frequent pair
         most_freq_pair = max(pair_freq, key=lambda k: (pair_freq[k], k))
@@ -96,10 +101,10 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
                 i+=1
             # Update the pre-token frequency table
             new_pretoken_freq[pretoken_tuple] = freq
-        if pair_freq[most_freq_pair]!=0:
-            print(pair_freq[most_freq_pair])
         pretoken_freq = new_pretoken_freq
-    
+        pbar.update(len(vocab) - pbar.n) if progress_bar else None
+    pbar.close() if progress_bar else None
+
     return vocab, merges
         
 
