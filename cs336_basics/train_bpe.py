@@ -4,16 +4,17 @@ from typing import Iterable
 
 from cs336_basics.utils import GPT2_PRETOKENIZER_PATTERN
 
-def _contain_pair(byte_tuple: Iterable[bytes], byte_pair: Iterable[bytes]):
+
+def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
     """
-    Check if the byte pair is in the byte tuple.
-    If so, return a dictionary with the prefix, pair, and suffix.
+    Merge the byte tuple at the merge location.
     """
-    for i in range(len(byte_tuple) - 1):
-        if byte_tuple[i:i+2] == byte_pair:
-            return dict(prefix=byte_tuple[:i], middle=byte_pair, suffix=byte_tuple[i+2:])
-    return None
-                
+    assert len(byte_tuple) > 1, "Cannot merge a byte tuple with length less than 2."
+    prefix = byte_tuple[:merge_loc]
+    tomerge = byte_tuple[merge_loc:merge_loc+2]
+    suffix = byte_tuple[merge_loc+2:]
+    new_byte_tuple = prefix + (b"".join(tomerge),) + suffix
+    return new_byte_tuple, prefix, suffix
 
 def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
     """
@@ -34,7 +35,7 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
     # Initialize the vocab with 256 bytes and sepcial tokens
     vocab = {i: bytes([i]) for i in range(256)}
     for i, token in enumerate(special_tokens):
-        vocab[265+i] = token.encode("utf-8")
+        vocab[256+i] = token.encode("utf-8")
 
     # Remove special tokens from teh text
     for token in special_tokens:
@@ -53,15 +54,16 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
     for pretoken_tuple, freq in pretoken_freq.items():
         for i in range(len(pretoken_tuple) - 1):
             pair = pretoken_tuple[i:i+2]
-            pair_freq[pair] = pair_freq.get(pair, 0) + freq
-        
-    # Initialize the merges list
+            if pair not in pair_freq:
+                pair_freq[pair] = 0
+            pair_freq[pair] += freq
+    
     merges = []
 
     # Perform the BPE algorithm
     while len(vocab) < vocab_size:
         # Find the most frequent pair
-        most_freq_pair = max(pair_freq, key=pair_freq.get)
+        most_freq_pair = max(pair_freq, key=lambda k: (pair_freq[k], k))
 
         # Add the pair to the merges list
         merges.append(most_freq_pair)
@@ -73,27 +75,29 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
         # Update the pre-token frequency table and pair frequency table
         new_pretoken_freq = {}
         for pretoken_tuple, freq in pretoken_freq.items():
-            overlap = _contain_pair(pretoken_tuple, most_freq_pair)
-            if not overlap:
-                new_pretoken_freq[pretoken_tuple] = freq
-            else:
-                # Update the pre-token frequency table
-                new_pretoken = overlap["prefix"] + (vocab[new_id],) + overlap["suffix"]
-                new_pretoken_freq[new_pretoken] = freq
+            i=0
+            while i < len(pretoken_tuple):
+                pair = pretoken_tuple[i:i+2]
+                if pair == most_freq_pair:
+                    pretoken_tuple, prefix, suffix = _update_byte_tuple(pretoken_tuple, i)
 
-                # Update the pair frequency table
-                if overlap["prefix"]:
-                    add_pair = (overlap["prefix"][-1], vocab[new_id])
-                    pair_freq[add_pair] = freq
-                    del_pair = (overlap["prefix"][-1], most_freq_pair[0])
-                    pair_freq[del_pair] -= freq
-                if overlap["suffix"]:
-                    add_pair = (vocab[new_id], overlap["suffix"][0])
-                    pair_freq[add_pair] = freq
-                    del_pair = (most_freq_pair[1], overlap["suffix"][0])
-                    pair_freq[del_pair] -= freq
-                pair_freq[most_freq_pair] -= freq
-        print(pair_freq[most_freq_pair])
+                    # Update the pair frequency table
+                    if prefix:
+                        add_pair = (prefix[-1], vocab[new_id])
+                        pair_freq[add_pair] = pair_freq.get(add_pair, 0) + freq
+                        del_pair = (prefix[-1], most_freq_pair[0])
+                        pair_freq[del_pair] -= freq
+                    if suffix:
+                        add_pair = (vocab[new_id], suffix[0])
+                        pair_freq[add_pair] = pair_freq.get(add_pair, 0) + freq
+                        del_pair = (most_freq_pair[1], suffix[0])
+                        pair_freq[del_pair] -= freq
+                    pair_freq[most_freq_pair] -= freq
+                i+=1
+            # Update the pre-token frequency table
+            new_pretoken_freq[pretoken_tuple] = freq
+        if pair_freq[most_freq_pair]!=0:
+            print(pair_freq[most_freq_pair])
         pretoken_freq = new_pretoken_freq
     
     return vocab, merges
@@ -103,13 +107,16 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str]):
 
     
 if __name__ == '__main__':
-    # print(_contain_pair((b'ads', b'q', b'bs', b'c', b'd'), (b'bs', b'c'))) 
-    # txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/tests/fixtures/tinystories_sample_5M.txt'
-    # special_tokens = ['<|endoftext|>']
-    # vocab_size = 100*(10**3)
-    # train_bpe(txt_path, vocab_size, special_tokens)
+    # print(_contain_pair((b'ads', b'q', b'bs', b'c', b'd', b'bs', b'c'), (b'bs', b'c'))) 
+    # print(_merge_byte_tuple((b'ads', b'q', b'bs', b'c', b'd', b'bs', b'c'), [2, 5]))
 
-    txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/cs336_basics/test_text.txt'
+
+    txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/tests/fixtures/corpus.en'
     special_tokens = ['<|endoftext|>']
-    vocab_size = 260
+    vocab_size = 100*(10**3)
     train_bpe(txt_path, vocab_size, special_tokens)
+
+    # txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/cs336_basics/test_text.txt'
+    # special_tokens = ['<|endoftext|>']
+    # vocab_size = 1000
+    # train_bpe(txt_path, vocab_size, special_tokens)
