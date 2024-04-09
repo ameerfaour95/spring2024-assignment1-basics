@@ -9,9 +9,9 @@ wandb_name = 'cs336_basics'
 wandb_run_name = 'train_bpe_expts_owt'
 special_tokens = ['<|endoftext|>']
 text_source = 'data/owt_train.txt'
-vocab_size = 10*(10**3)
-output_vocab_path = 'data/out/tinystories_vocab.pkl'
-output_merge_path = 'data/out/tinystories_merges.pkl'
+vocab_size = 32*(10**3)
+output_vocab_path = 'data/out/owt_vocab.pkl'
+output_merge_path = 'data/out/owt_merges.pkl'
 config = dict(wandb_name=wandb_name, wandb_run_name=wandb_run_name,
               special_tokens=special_tokens, text_source=text_source,
               vocab_size=vocab_size, output_vocab_path=output_vocab_path,
