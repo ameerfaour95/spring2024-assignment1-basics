@@ -6,20 +6,20 @@ import wandb
 
 # configs variables
 wandb_name = 'cs336_basics'
-wandb_run_name = 'train_bpe_expts_owt'
+wandb_run_name = 'train_bpe_expts_owt_2G'
 special_tokens = ['<|endoftext|>']
-text_source = 'data/owt_train.txt'
+text_source = 'data/owt_train_2G.txt'
 vocab_size = 32*(10**3)
-output_vocab_path = 'data/out/owt_vocab.pkl'
-output_merge_path = 'data/out/owt_merges.pkl'
-num_worker = 1
+output_vocab_path = 'data/out/owt_2G_vocab.pkl'
+output_merge_path = 'data/out/owt_2G_merges.pkl'
+num_worker = 12
 config = dict(wandb_name=wandb_name, wandb_run_name=wandb_run_name,
               special_tokens=special_tokens, text_source=text_source,
               vocab_size=vocab_size, output_vocab_path=output_vocab_path,
               output_merge_path=output_merge_path)
 
 # wandb logging
-# wandb.init(project=wandb_name, name=wandb_run_name, config=config)
+wandb.init(project=wandb_name, name=wandb_run_name, config=config)
 
 
 # Training BPE
