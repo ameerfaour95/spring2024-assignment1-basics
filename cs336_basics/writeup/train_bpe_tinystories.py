@@ -1,5 +1,5 @@
 from cs336_basics.train_bpe import train_bpe
-from cs336_basics.utils import serialize, deserialize
+from cs336_basics.utils.io import serialize, deserialize
 import cProfile
 import wandb
 

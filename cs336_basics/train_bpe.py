@@ -7,8 +7,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 from collections import Counter
 import concurrent.futures
 
-from cs336_basics.utils import GPT2_PRETOKENIZER_PATTERN, Multiset
-
+from cs336_basics.utils.io import GPT2_PRETOKENIZER_PATTERN
+from cs336_basics.utils.multiset import Multiset
 
 def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
     """
