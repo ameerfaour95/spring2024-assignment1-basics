@@ -8,7 +8,6 @@ from collections import Counter
 import concurrent.futures
 
 from cs336_basics.utils.io import GPT2_PRETOKENIZER_PATTERN
-from cs336_basics.utils.multiset import Multiset
 
 def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
     """
@@ -69,21 +68,20 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
     
     
     logging.info("Initializing byte pair frequency table")
-    pair_freq = {}
+    pair_freq = Counter()
     for pretoken_tuple, freq in tqdm(pretoken_freq.items(), disable=not progress_bar):
         for i in range(len(pretoken_tuple) - 1):
             pair = pretoken_tuple[i:i+2]
             if pair not in pair_freq:
                 pair_freq[pair] = 0
             pair_freq[pair] += freq
-    pair_freq = Multiset(pair_freq)
 
     logging.info("Performing BPE algorithm")
     pbar = tqdm(total=vocab_size) if progress_bar else None
     merges = []
     while len(vocab) < vocab_size:
         # Find the most frequent pair
-        most_freq_pair = pair_freq.most_common
+        most_freq_pair = max(pair_freq, key=lambda k: (pair_freq[k], k))
 
         # Add the pair to the merges list
         merges.append(most_freq_pair)
@@ -104,15 +102,15 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
                     # Update the pair frequency table
                     if prefix:
                         add_pair = (prefix[-1], vocab[new_id])
-                        pair_freq.add(add_pair, freq)
+                        pair_freq[add_pair] = pair_freq.get(add_pair, 0) + freq
                         del_pair = (prefix[-1], most_freq_pair[0])
-                        pair_freq.remove(del_pair, freq)
+                        pair_freq[del_pair] -= freq
                     if suffix:
                         add_pair = (vocab[new_id], suffix[0])
-                        pair_freq.add(add_pair, freq)
+                        pair_freq[add_pair] = pair_freq.get(add_pair, 0) + freq
                         del_pair = (most_freq_pair[1], suffix[0])
-                        pair_freq.remove(del_pair, freq)
-                    pair_freq.remove(most_freq_pair, freq)
+                        pair_freq[del_pair] -= freq
+                    pair_freq[most_freq_pair] -= freq
                 i+=1
             # Update the pre-token frequency table
             new_pretoken_freq[pretoken_tuple] = freq

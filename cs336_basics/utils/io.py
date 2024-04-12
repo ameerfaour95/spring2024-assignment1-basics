@@ -3,6 +3,7 @@ import json
 from typing import Dict, List, Tuple
 import os
 from functools import lru_cache
+import torch
 
 GPT2_PRETOKENIZER_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -96,6 +97,20 @@ def get_tokenizer_from_vocab_merges_path(
         for merge_token_1, merge_token_2 in gpt2_bpe_merges
     ]
     return vocab, merges
+
+def save_checkpoint(model: torch.nn.Module, optimizer: torch.optim.Optimizer, iteration: int, out: str):
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'iteration': iteration,
+    }, out)
+
+def load_checkpoint(src: str, model: torch.nn.Module, optimizer: torch.optim.Optimizer):
+    checkpoint = torch.load(src)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    iteration = checkpoint['iteration']
+    return iteration
 
 if __name__ == "__main__":
     vocab_path = 'tests/fixtures/gpt2_vocab.json'
