@@ -1,4 +1,3 @@
-import pickle
 import json
 from typing import Dict, List, Tuple
 import os
@@ -6,16 +5,6 @@ from functools import lru_cache
 import torch
 
 GPT2_PRETOKENIZER_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-
-def serialize(obj, path: str):
-    serialized_obj = pickle.dumps(obj)
-    with open(path, 'wb') as f:
-        f.write(serialized_obj)
-
-def deserialize(path: str):
-    with open(path, 'rb') as f:
-        serialized_obj = pickle.load(f)
-    return serialized_obj
 
 @lru_cache()
 def gpt2_bytes_to_unicode() -> dict[int, str]:
@@ -98,6 +87,31 @@ def get_tokenizer_from_vocab_merges_path(
     ]
     return vocab, merges
 
+def save_voacb_and_merge(vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]],
+                            vocab_path: str, merges_path: str):
+    byte_to_unicode = gpt2_bytes_to_unicode()
+
+    # Reverse the mapping from unicode characters to bytes
+    unicode_to_byte = {v: k for k, v in byte_to_unicode.items()}
+    
+    # Convert the byte tokens in the vocab back to string tokens using the unicode mapping
+    reversed_vocab = {''.join([byte_to_unicode[b] for b in bytes_token]):k
+                      for k, bytes_token in vocab.items()}
+
+    # Convert the byte sequences in merges back to string tokens
+    reversed_merges = [' '.join([''.join([byte_to_unicode[b] for b in merge[0]]),
+                                 ''.join([byte_to_unicode[b] for b in merge[1]])])
+                       for merge in merges]
+
+    # Save the vocab dictionary as a JSON file
+    with open(vocab_path, 'w', encoding='utf-8') as f:
+        json.dump(reversed_vocab, f, ensure_ascii=False)
+    
+    # Save the merges list to a file
+    with open(merges_path, 'w', encoding='utf-8') as f:
+        for merge in reversed_merges:
+            f.write(merge + '\n')
+
 def save_checkpoint(model: torch.nn.Module, optimizer: torch.optim.Optimizer, iteration: int, out: str):
     torch.save({
         'model_state_dict': model.state_dict(),
@@ -116,3 +130,9 @@ if __name__ == "__main__":
     vocab_path = 'tests/fixtures/gpt2_vocab.json'
     merges_path = 'tests/fixtures/gpt2_merges.txt'
     vocab, merges = get_tokenizer_from_vocab_merges_path(vocab_path, merges_path)
+    output_vocab_path = 'data/out/test_vocab.json'
+    output_merge_path = 'data/out/test_merges.txt'
+    save_voacb_and_merge(vocab, merges, output_vocab_path, output_merge_path)
+    load_vocab, load_merges = get_tokenizer_from_vocab_merges_path(output_vocab_path, output_merge_path)
+    assert merges == load_merges
+    assert vocab == load_vocab

@@ -9,18 +9,6 @@ import concurrent.futures
 
 from cs336_basics.utils.io import GPT2_PRETOKENIZER_PATTERN
 
-def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
-    """
-    Merge the byte tuple at the merge location.
-    """
-    assert len(byte_tuple) > 1, "Cannot merge a byte tuple with length less than 2."
-    prefix = byte_tuple[:merge_loc]
-    tomerge = byte_tuple[merge_loc:merge_loc+2]
-    suffix = byte_tuple[merge_loc+2:]
-    new_byte_tuple = prefix + (b"".join(tomerge),) + suffix
-    return new_byte_tuple, prefix, suffix
-
-
 def _find_pretokens(text: str):
     """
     Find the pretokens in the text.
@@ -28,30 +16,17 @@ def _find_pretokens(text: str):
     logging.info(f"Pre-tokenizing the text of length {len(text)}")
     return Counter(re.findall(GPT2_PRETOKENIZER_PATTERN, text))
 
-
-def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
-              progress_bar: bool = False, num_worker: int = 2):
+def _read_text_file(input_path: str, num_worker: int, special_tokens: Iterable[str]):
     """
-    Train a byte pair encoding tokenizer on the input text file.
-
-    Args:
-        input_path: Path to the input text file.
-        vocab_size: Size of the vocabulary.
-        special_tokens: List of special tokens to add to the vocabulary.
-
-    Returns:
-        Tuple of the learned vocab and merges.
+    Read the text file at the given path.
+    Return the text as pretoken frequency table.
     """
+
     # Read the input text file
-    with open(input_path, "r", encoding="utf-8") as f:
-        text = f.read()
+    with open(input_path, "r") as file:
+        text = file.read()
 
-    # Initialize the vocab with 256 bytes and sepcial tokens
-    vocab = {i: bytes([i]) for i in range(256)}
-    for i, token in enumerate(special_tokens):
-        vocab[256+i] = token.encode("utf-8")
-
-    # Remove special tokens from teh text
+    # Remove special tokens from the text
     for token in special_tokens:
         text = text.replace(token, "")
     
@@ -66,7 +41,41 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
     for pretoken, freq in pretokens.items():
         pretoken_freq[gen_tuple_of_bytes(pretoken)] = freq
     
+    return pretoken_freq
+
+
+def _update_byte_tuple(byte_tuple: Iterable[bytes], merge_loc: int):
+    """
+    Merge the byte tuple at the merge location.
+    """
+    assert len(byte_tuple) > 1, "Cannot merge a byte tuple with length less than 2."
+    prefix = byte_tuple[:merge_loc]
+    tomerge = byte_tuple[merge_loc:merge_loc+2]
+    suffix = byte_tuple[merge_loc+2:]
+    new_byte_tuple = prefix + (b"".join(tomerge),) + suffix
+    return new_byte_tuple, prefix, suffix
+
+
+def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
+              progress_bar: bool = False, num_workers: int = 1):
+    """
+    Train a byte pair encoding tokenizer on the input text file.
+
+    Args:
+        input_path: Path to the input text file.
+        vocab_size: Size of the vocabulary.
+        special_tokens: List of special tokens to add to the vocabulary.
+
+    Returns:
+        Tuple of the learned vocab and merges.
+    """
+    # Initialize the vocab with 256 bytes and sepcial tokens
+    vocab = {i: bytes([i]) for i in range(256)}
+    for i, token in enumerate(special_tokens):
+        vocab[256+i] = token.encode("utf-8")
     
+    pretoken_freq = _read_text_file(input_path, num_workers, special_tokens)
+
     logging.info("Initializing byte pair frequency table")
     pair_freq = Counter()
     for pretoken_tuple, freq in tqdm(pretoken_freq.items(), disable=not progress_bar):
@@ -77,7 +86,8 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
             pair_freq[pair] += freq
 
     logging.info("Performing BPE algorithm")
-    pbar = tqdm(total=vocab_size) if progress_bar else None
+    pre_merge_vocab_size = len(vocab)
+    pbar = tqdm(total=vocab_size-pre_merge_vocab_size) if progress_bar else None
     merges = []
     while len(vocab) < vocab_size:
         # Find the most frequent pair
@@ -115,26 +125,17 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
             # Update the pre-token frequency table
             new_pretoken_freq[pretoken_tuple] = freq
         pretoken_freq = new_pretoken_freq
-        pbar.update(len(vocab) - pbar.n) if progress_bar else None
+        pbar.update(len(vocab) - pre_merge_vocab_size - pbar.n) if progress_bar else None
     pbar.close() if progress_bar else None
 
     return vocab, merges
         
-
-    
-
     
 if __name__ == '__main__':
-    # print(_contain_pair((b'ads', b'q', b'bs', b'c', b'd', b'bs', b'c'), (b'bs', b'c'))) 
-    # print(_merge_byte_tuple((b'ads', b'q', b'bs', b'c', b'd', b'bs', b'c'), [2, 5]))
-
-
-    txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/tests/fixtures/corpus.en'
+    txt_path = 'data/owt_train.txt'
     special_tokens = ['<|endoftext|>']
-    vocab_size = 256+256
-    train_bpe(txt_path, vocab_size, special_tokens)
-
-    # txt_path = '/home/groups/candes/zitong/cs336-assignment1-basics/cs336_basics/test_text.txt'
-    # special_tokens = ['<|endoftext|>']
-    # vocab_size = 1000
+    num_worker = 20
+    _read_text_file(txt_path, num_worker, special_tokens)
+    
+    # vocab_size = 256+256
     # train_bpe(txt_path, vocab_size, special_tokens)

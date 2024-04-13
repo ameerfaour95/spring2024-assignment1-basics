@@ -1,35 +1,36 @@
 from cs336_basics.train_bpe import train_bpe
-from cs336_basics.utils.io import serialize, deserialize
+from cs336_basics.utils.io import save_voacb_and_merge
 import cProfile
 import wandb
 
-
-# configs variables
+# io
+text_source = 'data/TinyStoriesV2-GPT4-train.txt'
+output_vocab_path = 'data/out/tinystories_vocab.json'
+output_merge_path = 'data/out/tinystories_merges.txt'
+# wandb setup
 wandb_name = 'cs336_basics'
 wandb_run_name = 'train_bpe_tinystories'
+wandb_logging = False
+# args
 special_tokens = ['<|endoftext|>']
-text_source = 'data/TinyStoriesV2-GPT4-train.txt'
 vocab_size = 10*(10**3)
-output_vocab_path = 'data/out/tinystories_vocab.pkl'
-output_merge_path = 'data/out/tinystories_merges.pkl'
-config = dict(wandb_name=wandb_name, wandb_run_name=wandb_run_name,
-              special_tokens=special_tokens, text_source=text_source,
-              vocab_size=vocab_size, output_vocab_path=output_vocab_path,
-              output_merge_path=output_merge_path)
-
+num_workers = 20
+# for wandb logging
+config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
+config = {k: globals()[k] for k in config_keys}
 # wandb logging
-wandb.init(project=wandb_name, name=wandb_run_name, config=config)
+if wandb_logging:
+    wandb.init(project=wandb_name, name=wandb_run_name, config=config)
 
 
 # Training BPE
 pr = cProfile.Profile()
 pr.enable()
-vocab, merges = train_bpe(text_source, vocab_size, special_tokens, progress_bar=True)
+vocab, merges = train_bpe(text_source, vocab_size, special_tokens, progress_bar=True, num_workers=num_workers)
 pr.disable()
 
 # Print time taken in units of hours
 pr.print_stats(sort='time')
 
 # Serialize and save the vocab and merges
-serialize(vocab, output_vocab_path)
-serialize(merges, output_merge_path)
+save_voacb_and_merge(vocab, merges, output_vocab_path, output_merge_path)
