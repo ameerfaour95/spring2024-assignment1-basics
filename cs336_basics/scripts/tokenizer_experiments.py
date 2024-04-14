@@ -4,14 +4,14 @@ import time
 
 ENDOFTEXT = '<|endoftext|>'
 tinystory = {
-    'textsource':'data/TinyStoriesV2-GPT4-train.txt',
+    'textsource':'data/raw/TinyStoriesV2-GPT4-train.txt',
     'vocab_path': 'data/out/tinystories_vocab.json',
     'merge_path': 'data/out/tinystories_merges.txt'
 }
 owt = {
-    'textsource':'data/owt_train_2G.txt',
-    'vocab_path': 'tests/fixtures/gpt2_vocab.json',
-    'merge_path': 'tests/fixtures/gpt2_merges.txt'
+    'textsource':'data/raw/owt_train_2G.txt',
+    'vocab_path': 'data/out/owt_vocab.json',
+    'merge_path': 'data/out/owt_merges.txt'
 }
 
 
