@@ -5,7 +5,7 @@ import wandb
 
 
 # io
-text_source = 'data/owt_train.txt'
+text_source = 'data/owt_train_2G.txt'
 output_vocab_path = 'data/out/owt_vocab.json'
 output_merge_path = 'data/out/owt_merges.txt'
 # wandb setup

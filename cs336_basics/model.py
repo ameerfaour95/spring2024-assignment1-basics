@@ -161,8 +161,3 @@ class TransformerLM(nn.Module):
         x = self.ln_final(x)
         x = self.lm_head(x)
         return x
-    
-        
-
-
-

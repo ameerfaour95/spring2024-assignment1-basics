@@ -127,8 +127,8 @@ def load_checkpoint(src: str, model: torch.nn.Module, optimizer: torch.optim.Opt
     return iteration
 
 if __name__ == "__main__":
-    vocab_path = 'tests/fixtures/gpt2_vocab.json'
-    merges_path = 'tests/fixtures/gpt2_merges.txt'
+    vocab_path = 'data/out/tinystories_vocab.json'
+    merges_path = 'data/out/tinystories_merges.txt'
     vocab, merges = get_tokenizer_from_vocab_merges_path(vocab_path, merges_path)
     output_vocab_path = 'data/out/test_vocab.json'
     output_merge_path = 'data/out/test_merges.txt'

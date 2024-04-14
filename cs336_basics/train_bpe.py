@@ -129,13 +129,3 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: Iterable[str],
     pbar.close() if progress_bar else None
 
     return vocab, merges
-        
-    
-if __name__ == '__main__':
-    txt_path = 'data/owt_train.txt'
-    special_tokens = ['<|endoftext|>']
-    num_worker = 20
-    _read_text_file(txt_path, num_worker, special_tokens)
-    
-    # vocab_size = 256+256
-    # train_bpe(txt_path, vocab_size, special_tokens)
