@@ -31,11 +31,14 @@ def _read_text_file(input_path: str, num_worker: int, special_tokens: Iterable[s
         text = text.replace(token, "")
     
     logging.info("Initializing pretoken frequency table")
-    chunk_size = len(text) // num_worker
-    text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-    with concurrent.futures.ProcessPoolExecutor(max_workers=num_worker) as executor:
-        pretokens = executor.map(_find_pretokens, text_chunks)
-    pretokens = sum(pretokens, Counter())
+    if num_worker == 1:
+        pretokens = _find_pretokens(text)
+    else:
+        chunk_size = len(text) // num_worker
+        text_chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+        with concurrent.futures.ProcessPoolExecutor(max_workers=num_worker) as executor:
+            pretokens = executor.map(_find_pretokens, text_chunks)
+        pretokens = sum(pretokens, Counter())
     gen_tuple_of_bytes = lambda pretoken: tuple([bytes([b]) for b in pretoken.encode("utf-8")])
     pretoken_freq = {}
     for pretoken, freq in pretokens.items():

@@ -5,7 +5,7 @@ import wandb
 
 
 # io
-text_source = 'data/owt_train_2G.txt'
+text_source = 'data/raw/owt_train.txt'
 output_vocab_path = 'data/out/owt_vocab.json'
 output_merge_path = 'data/out/owt_merges.txt'
 # wandb setup
@@ -15,7 +15,7 @@ wandb_logging = True
 # args
 special_tokens = ['<|endoftext|>']
 vocab_size = 32*(10**3)
-num_workers = 20
+num_workers = 1
 # for wandb logging
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 config = {k: globals()[k] for k in config_keys}
