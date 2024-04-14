@@ -138,7 +138,7 @@ class TransformerBlock(nn.Module):
 class TransformerLM(nn.Module):
     def __init__(self, vocab_size: int, context_length: int, num_layers: int,
                  d_model: int, num_heads: int, d_ff: int, attn_pdrop: float,
-                 resid_pdrop: float):
+                 resid_pdrop: float, **kwargs):
         super(TransformerLM, self).__init__()
         self.d_model = d_model
         self.num_layers = num_layers

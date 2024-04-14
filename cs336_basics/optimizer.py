@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-def get_lr_cosine_schedule(t, lr_max, lr_min, warmup_iters, total_iters):
+def get_lr_cosine_schedule(t, lr_max, lr_min, warmup_iters, total_iters, **kwargs):
     if t < warmup_iters:
         return lr_max * t / warmup_iters
     elif t < total_iters:
@@ -11,10 +11,13 @@ def get_lr_cosine_schedule(t, lr_max, lr_min, warmup_iters, total_iters):
 
 
 class AdamW(torch.optim.Optimizer):
-    def __init__(self, params, lr, weight_decay=0.01, betas=(0.9, 0.999), eps=1e-8):
+    def __init__(self, params, lr=None, weight_decay=0.001, betas=(0.9, 0.999), eps=1e-8, **kwargs):
         defaults = dict(lr=lr, weight_decay=weight_decay, betas=betas, eps=eps)
         super(AdamW, self).__init__(params, defaults)
-
+    
+    def set_lr(self, lr):
+        for group in self.param_groups:
+            group['lr'] = lr
     
     def step(self):
         for group in self.param_groups:

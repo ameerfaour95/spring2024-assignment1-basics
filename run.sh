@@ -1,0 +1,16 @@
+python cs336_basics/train.py \
+    --dataset_name='tinystories' \
+    --context_length=256 \
+    --batch_size=128 \
+    --d_model=512 \
+    --d_ff=2048 \
+    --attn_pdrop=0.0 \
+    --resid_pdrop=0.0 \
+    --num_layers=4 \
+    --num_heads=16 \
+    --lr_max=1e-3 \
+    --total_iters=10000 \
+    --wandb_project='cs336_basics' \
+    --wandb_run_name='tinystories_lr_1e-3' \
+    --wandb_logging=True \
+    --eval_iters=1

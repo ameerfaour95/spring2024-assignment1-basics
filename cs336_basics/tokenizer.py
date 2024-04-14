@@ -58,14 +58,16 @@ class Tokenizer:
                     self.special_tokens[token] = len(self.vocab['int_to_byte'])
                 else:
                     self.special_tokens[token] = self.vocab['byte_to_int'][token_byte]
-
-
     
     @classmethod
-    def from_files(cls, vocab_filepath, merges_filepath, special_tokens=None):
+    def from_files(cls, vocab_filepath, merges_filepath, special_tokens=None, **kwargs):
         vocab, merges = get_tokenizer_from_vocab_merges_path(vocab_filepath, merges_filepath)
         return cls(vocab, merges, special_tokens)
-    
+
+    @property
+    def vocab_size(self):
+        return len(self.vocab['int_to_byte'])
+
     def _encode_chunk(self, chunk: str) -> List[int]:
         """
         Encode a short chunk of text with no special tokens.
@@ -123,28 +125,3 @@ class Tokenizer:
         """
         text_bytes = b''.join([self.vocab['int_to_byte'][i] for i in ids])
         return text_bytes.decode("utf-8", errors="replace")
-    
-
-if __name__ == "__main__":
-    vocab_filepath = 'tests/fixtures/gpt2_vocab.json'
-    merges_filepath = 'tests/fixtures/gpt2_merges.txt'
-    # special_tokens=["<|endoftext|>"]
-    special_tokens = None
-    tokenizer = Tokenizer.from_files(vocab_filepath, merges_filepath, special_tokens)
-
-    test_string = ''
-    ids = tokenizer.encode(test_string)
-    print(ids)
-    decoded_string = tokenizer.decode(ids)
-    print(decoded_string)
-
-    # import tiktoken
-    # with open("tests/fixtures/address.txt") as f:
-    #     test_string = f.read()
-    # reference_tokenizer = tiktoken.get_encoding("gpt2")
-    # reference_ids = reference_tokenizer.encode(test_string)
-    # ids = tokenizer.encode(test_string)
-    # assert ids == reference_ids
-
-    # assert tokenizer.decode(ids) == test_string
-    # assert reference_tokenizer.decode(reference_ids) == test_string
