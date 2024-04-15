@@ -1,7 +1,8 @@
 import regex as re
 from typing import Dict, Tuple, Iterable, List
+from tqdm import tqdm
+
 from cs336_basics.utils.io import get_tokenizer_from_vocab_merges_path, GPT2_PRETOKENIZER_PATTERN
-import concurrent.futures
 
 def get_pairs(ids: Iterable[int]) -> Iterable[Tuple[int, int]]:
     """ Return a set of pairs in int ids """
@@ -67,55 +68,51 @@ class Tokenizer:
     @property
     def vocab_size(self):
         return len(self.vocab['int_to_byte'])
-
-    def _encode_chunk(self, chunk: str) -> List[int]:
-        """
-        Encode a short chunk of text with no special tokens.
-        """
-        text_bytes = chunk.encode("utf-8")
-        ids = [self.vocab['byte_to_int'][bytes([b])] for b in chunk.encode("utf-8")]
-        while len(ids)>=2:
-            pairs = get_pairs(ids)
-            high_priority_pair = min(pairs, key=lambda pair: self.merges.get(pair, float('inf')))
-            if high_priority_pair not in self.merges:
-                break
-            new_id = self.merges[high_priority_pair]
-            ids = update(ids, high_priority_pair, new_id)
-        return ids
     
-    def _encode_no_special(self, text: str, num_worker) -> List[int]:
+    def _encode_chunk(self, text: str) -> List[int]:
         """
         Encode the text without special tokens.
         """
-        text_chunks = re.findall(GPT2_PRETOKENIZER_PATTERN, text)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=num_worker) as executor:
-            ids = list(executor.map(self._encode_chunk, text_chunks))
-        return sum(ids, [])
+        if text in self.special_tokens:
+            return [self.special_tokens[text]]
+        else:
+            text_chunks = re.findall(GPT2_PRETOKENIZER_PATTERN, text)
+            result = []
+            for chunk in text_chunks:
+                text_bytes = chunk.encode("utf-8")
+                ids = [self.vocab['byte_to_int'][bytes([b])] for b in chunk.encode("utf-8")]
+                while len(ids)>=2:
+                    pairs = get_pairs(ids)
+                    high_priority_pair = min(pairs, key=lambda pair: self.merges.get(pair, float('inf')))
+                    if high_priority_pair not in self.merges:
+                        break
+                    new_id = self.merges[high_priority_pair]
+                    ids = update(ids, high_priority_pair, new_id)
+                result.extend(ids)
+            return result
 
 
-    def encode(self, text: str, num_worker=10) -> List[int]:
+    def encode(self, text: str, progress_bar: bool=False) -> List[int]:
         """
         Encode the text into a list of token ids.
         """
         if self.special_tokens:
             special_pattern = "(" + "|".join(re.escape(k) for k in self.special_tokens) + ")"
-            special_chunks = re.split(special_pattern, text)
+            special_split_chunk = re.split(special_pattern, text)
         else:
-            special_chunks = [text]
+            special_split_chunk = [text]
         ids = []
-        for chunk in special_chunks:
-            if chunk in self.special_tokens:
-                ids.append(self.special_tokens[chunk])
-            else:
-                ids += self._encode_no_special(chunk, num_worker=num_worker)
+        for chunk in tqdm(special_split_chunk, disable=not progress_bar,
+                          desc=f"Encoding {len(special_split_chunk)} documents"):
+            ids += self._encode_chunk(chunk)
         return ids
     
-    def encode_iterable(self, texts: Iterable[str], num_worker=1) -> Iterable[List[int]]:
+    def encode_iterable(self, texts: Iterable[str]) -> Iterable[List[int]]:
         """
         Encode the texts into a list of token ids.
         """
         for text in texts:
-            ids = self.encode(text, num_worker=num_worker)
+            ids = self.encode(text)
             for id in ids:
                 yield id
 
