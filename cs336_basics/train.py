@@ -9,7 +9,7 @@ import time
 from cs336_basics.utils.data import Dataset
 from cs336_basics.utils.nn import cross_entropy, gradient_clipping
 from cs336_basics.utils.io import save_checkpoint, load_checkpoint
-from cs336_basics.model import TransformerLM
+from cs336_basics.model import TransformerLM, TransformerLMAblation
 from cs336_basics.optimizer import AdamW, get_lr_cosine_schedule
 
 # parsing the training configuration
@@ -47,6 +47,11 @@ class TrainingConfig:
     eval_interval: Optional[int] = field(default=None)
     eval_iters: Optional[int] = field(default=100)
 
+    # ablation studies
+    no_rmsnorm: Optional[bool] = field(default=False)
+    parallel_layers: Optional[bool] = field(default=False)
+    post_norm: Optional[bool] = field(default=False)
+
     def __post_init__(self):
         if self.warmup_iters is None:
             self.warmup_iters = int(self.total_iters * 0.01)
@@ -57,6 +62,7 @@ class TrainingConfig:
         if self.wandb_logging:
             assert self.wandb_project is not None, 'wandb_project must be provided if wandb_logging is True'
             assert self.wandb_run_name is not None, 'wandb_run_name must be provided if wandb_logging is True'
+        self.ablation = self.no_rmsnorm or self.parallel_layers or self.post_norm
 
         
 # parsing config
@@ -70,7 +76,10 @@ logging.info(f'Training with config: {asdict(config)}')
 # loading the dataset
 dataset = Dataset(**asdict(config))
 # loading the model
-model = TransformerLM(**asdict(config))
+if config.ablation:
+    model = TransformerLMAblation(**asdict(config))
+else:
+    model = TransformerLM(**asdict(config))
 model.to(config.device)
 if config.init_from != 'scratch':
     ckpt_dir = f'data/out/checkpoints/{config.init_from}'

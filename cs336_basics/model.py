@@ -161,3 +161,80 @@ class TransformerLM(nn.Module):
         x = self.ln_final(x)
         x = self.lm_head(x)
         return x
+
+class TransformerBlockAblation(nn.Module):
+    def __init__(self, d_model: int,
+                 num_heads: int,
+                 d_ff: int,
+                 attn_pdrop: float,
+                 resid_pdrop: float,
+                 no_rmsnorm: bool=False,
+                 parallel_layers: bool=False,
+                 post_norm: bool=False):
+        super(TransformerBlockAblation, self).__init__()
+        if not no_rmsnorm:
+            self.ln1 = RMSNorm(d_model)
+            self.ln2 = RMSNorm(d_model)
+        self.attn = MultiheadSelfAttention(d_model, num_heads, attn_pdrop)
+        self.drop1 = nn.Dropout(resid_pdrop)
+        
+        self.ffn = FFN(d_model, d_ff)
+        self.drop2 = nn.Dropout(resid_pdrop)
+
+        self.no_rmsnorm = no_rmsnorm
+        self.parallel_layers = parallel_layers
+        self.post_norm = post_norm
+    
+    def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
+        if self.no_rmsnorm:
+            x = x + self.drop1(self.attn(x))
+            x = x + self.drop2(self.ffn(x))
+        elif self.parallel_layers:
+            x1 = x + self.drop1(self.attn(self.ln1(x)))
+            x2 = x + self.drop2(self.ffn(self.ln2(x)))
+            x = x1 + x2
+        elif self.post_norm:
+            x = self.ln1(x + self.drop1(self.attn(x)))
+            x = self.ln2(x + self.drop2(self.ffn(x)))
+        else:
+            x = x + self.drop1(self.attn(self.ln1(x)))
+            x = x + self.drop2(self.ffn(self.ln2(x)))
+        return x
+
+class TransformerLMAblation(nn.Module):
+    def __init__(self, vocab_size: int, context_length: int, num_layers: int,
+                 d_model: int, num_heads: int, d_ff: int, attn_pdrop: float,
+                 resid_pdrop: float,
+                 no_rmsnorm: bool=False, parallel_layers: bool=False, post_norm: bool=False,
+                 **kwargs):
+
+        super(TransformerLMAblation, self).__init__()
+        self.d_model = d_model
+        self.num_layers = num_layers
+        self.token_embeddings = nn.Embedding(vocab_size, d_model)
+        self.position_embeddings = nn.Embedding(context_length, d_model)
+        self.layers = nn.ModuleList([
+            TransformerBlockAblation(d_model, num_heads, d_ff, attn_pdrop, resid_pdrop,
+                                  no_rmsnorm, parallel_layers, post_norm
+                                 ) for _ in range(num_layers)
+        ])
+        self.drop = nn.Dropout(resid_pdrop)
+        if not no_rmsnorm:
+            self.ln_final = RMSNorm(d_model)
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
+
+        self.no_rmsnorm = no_rmsnorm
+        self.parallel_layers = parallel_layers
+        self.post_norm = post_norm
+
+    def forward(self, x: torch.LongTensor) -> torch.FloatTensor:
+        B, T = x.size()
+        positions = torch.arange(T, device=x.device).expand(B, T)
+        x = self.token_embeddings(x) + self.position_embeddings(positions)
+        x = self.drop(x)
+        for layer in self.layers:
+            x = layer(x)
+        if not self.no_rmsnorm:
+            x = self.ln_final(x)
+        x = self.lm_head(x)
+        return x
