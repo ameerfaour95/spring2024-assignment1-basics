@@ -22,6 +22,5 @@ do
         --total_iters=10000 \
         --wandb_project='cs336_basics' \
         --wandb_run_name="tinystories_lr_${lr}" \
-        --wandb_logging=True \
-        --eval_iters=1
+        --wandb_logging=True
 done
