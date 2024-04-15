@@ -2,6 +2,7 @@ from typing import Iterable
 import numpy as np
 import time
 from tqdm import tqdm
+import wandb
 
 from cs336_basics.tokenizer import Tokenizer
 
@@ -12,6 +13,13 @@ owt = {
     'merges_filepath': 'data/out/owt_merges.txt',
     'special_tokens': ['<|endoftext|>']
 }
+# wandb setup
+wandb_name = 'cs336_basics'
+wandb_run_name = 'tokenize_owt'
+wandb_logging = True
+# wandb logging
+if wandb_logging:
+    wandb.init(project=wandb_name, name=wandb_run_name, config=owt)
 
 
 tokenizer = Tokenizer.from_files(**owt)
