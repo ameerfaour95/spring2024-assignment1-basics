@@ -72,5 +72,5 @@ python cs336_basics/train.py \
     --total_iters=10000 \
     --wandb_project='cs336_basics' \
     --wandb_run_name="tinystories_ablation_post_norm" \
-    --wandb_logging=False \
+    --wandb_logging=True \
     --post_norm=True
