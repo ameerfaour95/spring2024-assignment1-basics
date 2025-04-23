@@ -2,3 +2,4 @@ writeup.md
 **/__pycache__
 data/*
 wandb/*
+cs336_basics.egg-info/
