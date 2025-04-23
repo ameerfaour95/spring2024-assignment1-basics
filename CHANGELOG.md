@@ -2,7 +2,7 @@
 
 All changes we make to the assignment code or PDF will be documented in this file.
 
-## [Unreleased] - yyyy-mm-dd
+## [unreleased] - yyyy-mm-dd
 
 ### Added
 
@@ -10,7 +10,42 @@ All changes we make to the assignment code or PDF will be documented in this fil
 
 ### Fixed
 
+- code: fix `test_get_batch` to handle "AssertionError: Torch not compiled with CUDA enabled".
+- handout: clarify that gradient clipping norm is calculated over all the parameters.
+- code: fix gradient clipping test comparing wrong tensors
+- code: test skipping parameters with no gradient and properly computing norm with multiple parameters
+
+## [0.1.6] - 2024-04-13
+
+### Added
+
+### Changed
+
+### Fixed
+
+- handout: edit expected TinyStories run time to 30-40 minutes.
+- handout: add more details about how to use `np.memmap` or the `mmap_mode` flag
+  to `np.load`.
+- code: fix `get_tokenizer()` docstring.
+- handout: specify that problem `main_experiment` should use the same settings
+  as TinyStories.
+- code: replace mentions of layernorm with RMSNorm.
+
+## [0.1.5] - 2024-04-06
+
+### Added
+
+### Changed
+
+- handout: clarify example of preferring lexicographically greater merges to
+  specify that we want tuple comparison.
+
+### Fixed
+
+- handout: fix expected number of training tokens for TinyStories, should be
+  327,680,000.
 - code: fix typo in `run_get_lr_cosine_schedule` return docstring.
+- code: fix typo in `test_tokenizer.py`
 
 ## [0.1.4] - 2024-04-04
 
