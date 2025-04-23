@@ -43,7 +43,12 @@ def run_positionwise_feedforward(
     # You can also manually assign the weights
     # my_ffn.w1.weight.data = weights["w1.weight"]
     # my_ffn.w2.weight.data = weights["w2.weight"]
-    raise NotImplementedError
+    from cs336_basics.positionwise_feedforward import FeedForward
+    ff = FeedForward(
+        w1 = weights["w1.weight"],
+        w2 = weights["w2.weight"]
+    )
+    return ff.forward(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -331,7 +336,8 @@ def run_rmsnorm(
         FloatTensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    from cs336_basics.rmsnorm import RMSNorm
+    return RMSNorm(d_model=d_model, weights=weights, eps=eps).forward(in_features)
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
@@ -346,7 +352,8 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
-    raise NotImplementedError
+    from cs336_basics.positionwise_feedforward import GELU
+    return GELU().forward(in_features)
 
 
 def run_get_batch(
@@ -390,7 +397,8 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.softmax import Softmax
+    return Softmax(dim).forward(in_features)
 
 
 def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
@@ -536,7 +544,12 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    from cs336_basics.tokenizer import Tokenizer
+    return Tokenizer(
+        vocab=vocab,
+        merges=merges,
+        special_tokens=special_tokens
+    )
 
 
 def run_train_bpe(
@@ -569,4 +582,5 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    from cs336_basics.train_bpe import train_bpe
+    return train_bpe(input_path, vocab_size, special_tokens, **kwargs)
