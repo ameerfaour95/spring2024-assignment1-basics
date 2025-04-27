@@ -90,7 +90,14 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    raise NotImplementedError
+    from cs336_basics.scaled_dot_product_attention import attention_head
+    return attention_head(
+        K=K,
+        Q=Q,
+        V=V,
+        mask=mask,
+        pdrop=pdrop
+    )
 
 
 def run_multihead_self_attention(
@@ -140,7 +147,14 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.multihead_self_attention import MultiHeadAttention
+    mha = MultiHeadAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        weights=weights,
+        attn_pdrop=attn_pdrop
+    )
+    return mha(in_features)
 
 
 def run_transformer_block(
