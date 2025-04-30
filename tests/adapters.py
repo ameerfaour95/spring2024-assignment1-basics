@@ -45,10 +45,11 @@ def run_positionwise_feedforward(
     # my_ffn.w2.weight.data = weights["w2.weight"]
     from cs336_basics.positionwise_feedforward import FeedForward
     ff = FeedForward(
-        w1 = weights["w1.weight"],
-        w2 = weights["w2.weight"]
+        d_model = d_model,
+        d_ff=d_ff
     )
-    return ff.forward(in_features)
+    ff.load_state_dict(weights)
+    return ff(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -90,8 +91,8 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    from cs336_basics.scaled_dot_product_attention import attention_head
-    return attention_head(
+    from cs336_basics.scaled_dot_product_attention import scaled_dot_product_attention
+    return scaled_dot_product_attention(
         K=K,
         Q=Q,
         V=V,
@@ -151,9 +152,9 @@ def run_multihead_self_attention(
     mha = MultiHeadAttention(
         d_model=d_model,
         num_heads=num_heads,
-        weights=weights,
         attn_pdrop=attn_pdrop
     )
+    mha.load_state_dict(weights)
     return mha(in_features)
 
 
@@ -226,7 +227,12 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer_block import TransformerBlock
+    transformer_block =  TransformerBlock(
+        d_model, num_heads, d_ff, attn_pdrop, residual_pdrop
+    )
+    transformer_block.load_state_dict(weights)
+    return transformer_block(in_features)
 
 
 def run_transformer_lm(
@@ -351,7 +357,10 @@ def run_rmsnorm(
         RMSNorm of the `in_features`.
     """
     from cs336_basics.rmsnorm import RMSNorm
-    return RMSNorm(d_model=d_model, weights=weights, eps=eps).forward(in_features)
+    rms_norm = RMSNorm(d_model=d_model, eps=eps)
+    rms_norm.load_state_dict(weights)
+    return rms_norm(in_features)
+    
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:

@@ -12,13 +12,23 @@ class GELU(nn.Module):
         )
 
 class FeedForward(nn.Module):
-    def __init__(self, w1: torch.FloatTensor, w2: torch.FloatTensor):
+    def __init__(self, d_model: int, d_ff: int):
         super().__init__()
         self.gelu = GELU()
-        self.w1 = w1
-        self.w2 = w2
+        self.ff1 = nn.Linear(d_model, d_ff, bias=False)
+        self.ff2 = nn.Linear(d_ff, d_model, bias=False)
+
+    def load_state_dict(self, state_dict, strict = True, assign = False):
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            if "w1" in k:
+                new_state_dict["ff1.weight"] = v
+            elif "w2" in k:
+                new_state_dict["ff2.weight"] = v
+        return super().load_state_dict(new_state_dict, strict, assign)
 
     def forward(self, x: torch.FloatTensor):
-        x = torch.matmul(x, self.w1.transpose(0, 1))
+        x = self.ff1(x)
         x = self.gelu(x)
-        return torch.matmul(x, self.w2.transpose(0, 1))
+        x = self.ff2(x)
+        return x

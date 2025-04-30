@@ -4,7 +4,7 @@ import math
 from typing import Optional
 from cs336_basics.softmax import Softmax
 
-def attention_head(
+def scaled_dot_product_attention(
     K: torch.FloatTensor,
     Q: torch.FloatTensor,
     V: torch.FloatTensor,
