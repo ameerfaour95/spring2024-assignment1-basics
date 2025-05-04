@@ -3,3 +3,6 @@ writeup.md
 data/*
 wandb/*
 cs336_basics.egg-info/
+
+.vscode/settings.json
+.vscode/launch.json
