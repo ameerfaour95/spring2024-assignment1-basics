@@ -7,6 +7,13 @@ from typing import IO, BinaryIO, Iterable, Optional, Type
 import numpy.typing as npt
 import torch
 
+from cs336_basics.model import (
+    scaled_dot_product_attention,
+    RMSNorm, FeedForward,
+    MultiHeadAttention, TransformerBlock,
+    TransformerLM
+)
+from cs336_basics.utils import Softmax, GELU
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -43,7 +50,6 @@ def run_positionwise_feedforward(
     # You can also manually assign the weights
     # my_ffn.w1.weight.data = weights["w1.weight"]
     # my_ffn.w2.weight.data = weights["w2.weight"]
-    from cs336_basics.positionwise_feedforward import FeedForward
     ff = FeedForward(
         d_model = d_model,
         d_ff=d_ff
@@ -91,7 +97,6 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    from cs336_basics.scaled_dot_product_attention import scaled_dot_product_attention
     return scaled_dot_product_attention(
         K=K,
         Q=Q,
@@ -148,7 +153,6 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    from cs336_basics.multihead_self_attention import MultiHeadAttention
     mha = MultiHeadAttention(
         d_model=d_model,
         num_heads=num_heads,
@@ -227,7 +231,6 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    from cs336_basics.transformer_block import TransformerBlock
     transformer_block =  TransformerBlock(
         d_model, num_heads, d_ff, attn_pdrop, residual_pdrop
     )
@@ -325,7 +328,6 @@ def run_transformer_lm(
         FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
         next-word distribution for each token.
     """
-    from cs336_basics.transformer_lm import TransformerLM
     transformer_lm = TransformerLM(
         vocab_size,
         context_length,
@@ -368,7 +370,6 @@ def run_rmsnorm(
         FloatTensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    from cs336_basics.rmsnorm import RMSNorm
     rms_norm = RMSNorm(d_model=d_model, eps=eps)
     rms_norm.load_state_dict(weights)
     return rms_norm(in_features)
@@ -387,8 +388,8 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
-    from cs336_basics.positionwise_feedforward import GELU
-    return GELU().forward(in_features)
+    gelu = GELU()
+    return gelu(in_features)
 
 
 def run_get_batch(
@@ -432,7 +433,6 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    from cs336_basics.softmax import Softmax
     return Softmax(dim).forward(in_features)
 
 
