@@ -451,7 +451,11 @@ def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     Returns:
         Tensor of shape () with the average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    from cs336_basics.loss import CrossEntropyLoss
+    cross_entropy_loss = CrossEntropyLoss(
+        targets=targets, dim=-1
+    )
+    return cross_entropy_loss(inputs)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float):
@@ -473,7 +477,9 @@ def get_adamw_cls() -> Type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    from cs336_basics.optimizer import AdamW
+    return AdamW
+
 
 
 def run_get_lr_cosine_schedule(
