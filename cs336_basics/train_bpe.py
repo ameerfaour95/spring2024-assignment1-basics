@@ -1,5 +1,7 @@
 import regex
+import time
 from tqdm import tqdm
+from datetime import datetime
 from cs336_basics.utils import GPT2_PRETOKENIZER_PATTERN
 
 def get_stats(ids):
@@ -54,34 +56,67 @@ def train_bpe(
     special_tokens: list[str]
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
 
-    print("▶ loading input")
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ loading input")
     with open(input_path, encoding="utf-8") as f:
         text = f.read()
+
+    end_wall   = datetime.now()
+    duration_s = time.perf_counter() - start_perf
+    print(f"[{end_wall:%Y‑%m‑%d %H:%M:%S}] *** Finished loading input "
+          f"in {duration_s:.2f} s ***")
 
     for special_token in special_tokens:
         text = text.replace(special_token, "")
 
-    print("▶ splitting")
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ splitting words")
     words = regex.findall(GPT2_PRETOKENIZER_PATTERN, text)
 
-    print("▶ encoding")
+    end_wall   = datetime.now()
+    duration_s = time.perf_counter() - start_perf
+    print(f"[{end_wall:%Y‑%m‑%d %H:%M:%S}] *** Finished splitting words "
+          f"in {duration_s:.2f} s ***")
+
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ encoding")
     ids = [list(w.encode("utf-8")) for w in words]
 
-    print("▶ deleting 'words' var")
+    end_wall   = datetime.now()
+    duration_s = time.perf_counter() - start_perf
+    print(f"[{end_wall:%Y‑%m‑%d %H:%M:%S}] *** Finished encoding "
+          f"in {duration_s:.2f} s ***")
+
     del words
 
-    print("▶ init vocab")
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ init vocab")
     vocab = {idx: bytes([idx]) for idx in range(256)}
 
-    print("▶ handling special tokens")
+    end_wall   = datetime.now()
+    duration_s = time.perf_counter() - start_perf
+    print(f"[{end_wall:%Y‑%m‑%d %H:%M:%S}] *** Finished init vocab "
+          f"in {duration_s:.2f} s ***")
+
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ handling special tokens")
     for i, special_token in enumerate(special_tokens):
         s_token = special_token.encode("utf-8")
         vocab[256 + i] = s_token
-    
-    print("▶ init freq table")
+
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ init freq table")
     pair_freq_table, pair_index = get_stats(ids)
 
-    print("▶ start training")
+    start_wall = datetime.now()
+    start_perf = time.perf_counter()
+    print(f"[{start_wall:%Y‑%m‑%d %H:%M:%S}]▶ merging & updating freq table")
     merges = []
     total_merging = vocab_size - len(vocab)
     with tqdm(total=total_merging, desc="BPE Merges") as pbar:
@@ -98,4 +133,9 @@ def train_bpe(
             vocab[max(vocab) + 1] = new_token_bytes
             pbar.update(1)
 
+
+    end_wall   = datetime.now()
+    duration_s = time.perf_counter() - start_perf
+    print(f"[{end_wall:%Y‑%m‑%d %H:%M:%S}] *** Finished merging & updating freq table "
+          f"in {duration_s:.2f} s ***")
     return vocab, merges
