@@ -1,15 +1,13 @@
 import torch
 from torch import nn
-from cs336_basics.utils import Softmax
-
 class CrossEntropyLoss(nn.Module):
-    def __init__(self, targets: torch.LongTensor, dim: int):
-        super().__init__()
-        self.softmax = Softmax(dim=dim)
-        self.targets = targets
+    def forward(self, logits, targets: torch.LongTensor):
+        vocab_size = logits.shape[-1]
     
-    def forward(self, x):
-        log_sum_exp = torch.logsumexp(x, dim=-1)
-        targets_logits = x[range(x.shape[0]), self.targets]
+        flatten_logits = logits.view(-1, vocab_size)
+        flatten_targets = targets.view(-1)
+
+        log_sum_exp = torch.logsumexp(flatten_logits, dim=-1)
+        targets_logits = flatten_logits[range(flatten_logits.shape[0]), flatten_targets]
         loss = log_sum_exp - targets_logits
         return torch.mean(loss)
