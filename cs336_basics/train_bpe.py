@@ -1,7 +1,5 @@
 import regex
 from tqdm import tqdm
-from datetime import datetime
-import time
 from cs336_basics.utils import GPT2_PRETOKENIZER_PATTERN
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

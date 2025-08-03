@@ -9,7 +9,6 @@ def scaled_dot_product_attention(
     Q: torch.FloatTensor,
     V: torch.FloatTensor,
     mask: Optional[torch.BoolTensor] = None,
-    pdrop: Optional[float] = None
 ):
     dk = K.shape[-1]
     softmax = Softmax(dim=-1)
@@ -19,9 +18,6 @@ def scaled_dot_product_attention(
     else:
         masked_pre_softmax = pre_softmax
     attn_weights = softmax(masked_pre_softmax)
-    if pdrop is not None:
-        dropout = nn.Dropout(pdrop)
-        attn_weights = dropout(attn_weights)
 
     return torch.matmul(attn_weights, V)
 
@@ -47,7 +43,7 @@ class RMSNorm(nn.Module):
     ):
         super().__init__()
         self.d_model = d_model
-        self.weight = nn.Parameter(torch.randn(d_model))
+        self.weight = nn.Parameter(torch.ones(d_model))
         self.eps = eps
     
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
@@ -57,7 +53,7 @@ class RMSNorm(nn.Module):
         return torch.sqrt(
             torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps
         )
-    
+
 
 class MultiHeadAttention(nn.Module):
     def __init__(
@@ -74,7 +70,7 @@ class MultiHeadAttention(nn.Module):
         self.k_proj = nn.Linear(d_model, d_model, bias=False)
         self.v_proj = nn.Linear(d_model, d_model, bias=False)
         self.output_proj = nn.Linear(d_model, d_model, bias=False)
-        self.attn_pdrop = attn_pdrop
+        self.attn_pdrop = nn.Dropout(attn_pdrop) if attn_pdrop else nn.Identity()
 
     @staticmethod
     def _convert_per_head_weights_to_batched(weights: dict[str, torch.FloatTensor], d_model: int, num_heads: int) -> dict[str, torch.FloatTensor]:
@@ -120,8 +116,8 @@ class MultiHeadAttention(nn.Module):
             K=k,
             V=v,
             mask=mask,
-            pdrop=self.attn_pdrop
         )
+        att = self.attn_pdrop(att)
         att = att.transpose(1, 2).contiguous()
         out = att.view(b, seq_len, self.d_model)
 
@@ -161,7 +157,7 @@ class TransformerBlock(nn.Module):
         x = x + residual_skip
 
         return x
-    
+
 
 class TransformerLM(nn.Module):
     def __init__(
@@ -187,6 +183,7 @@ class TransformerLM(nn.Module):
         self.residual_dropout = nn.Dropout(residual_pdrop)
         self.ln_final = RMSNorm(d_model)
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
+        # self.lm_head.weight = self.token_embeddings.weight
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         batch_size, seq_len = x.shape

@@ -1,4 +1,5 @@
 import argparse, time, math, numpy as np, torch, wandb
+import random
 from pathlib import Path
 from cs336_basics.model import TransformerLM
 from cs336_basics.optimizer import AdamW, gradient_clipping, lr_cosine_schedule
@@ -7,6 +8,8 @@ from cs336_basics.data_loader import get_batch
 from cs336_basics.checkpointing import save_checkpoint, load_checkpoint
 from cs336_basics.decoding import generate_text
 from cs336_basics.tokenizer import Tokenizer
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def load_memmap(file_name: str, dtype=np.uint16) -> np.memmap:
@@ -59,7 +62,7 @@ def build_parser() -> argparse.Namespace:
     p.add_argument("--d-model", type=int, default=384)
     p.add_argument("--d-ff", type=int, default=1536)
     p.add_argument("--context-length", type=int, default=256)
-    p.add_argument("--attn-pdrop", type=float, default=None)
+    p.add_argument("--attn-pdrop", type=float, default=0.1)
     p.add_argument("--residual-pdrop", type=float, default=0.1)
 
     # Batch & duration
@@ -67,14 +70,14 @@ def build_parser() -> argparse.Namespace:
     p.add_argument("--steps", type=int, default=10_000, help="total optimisation iterations")
 
     # AdamW
-    p.add_argument("--lr", type=float, default=3e-4)
+    p.add_argument("--lr", type=float, default=5e-4)
     p.add_argument("--betas", type=str, default="0.9,0.999")
-    p.add_argument("--weight-decay", type=float, default=0.1)
+    p.add_argument("--weight-decay", type=float, default=0.01)
 
     # LR cosine schedule
-    p.add_argument("--lr-min", type=float, default=3e-7)
-    p.add_argument("--warmup-iters", type=int, default=500)
-    p.add_argument("--cosine-cycle-iters", type=int, default=10000)
+    p.add_argument("--lr-min", type=float, default=0)
+    p.add_argument("--warmup-iters", type=int, default=1500)
+    p.add_argument("--cosine-cycle-iters", type=int, default=15000)
 
     # Gradient clipping
     p.add_argument("--grad-clip", type=float, default=1.0)
@@ -83,8 +86,8 @@ def build_parser() -> argparse.Namespace:
     p.add_argument("--resume", action="store_true", help="Resume from checkpoints/output-dir/latest.pt if present")
 
     # Evaluation / checkpoint cadence (in steps)
-    p.add_argument("--eval-every-steps", type=int, default=20)
-    p.add_argument("--save-every-steps", type=int, default=100)
+    p.add_argument("--eval-every-steps", type=int, default=50)
+    p.add_argument("--save-every-steps", type=int, default=500)
 
     # Device
     p.add_argument("--device", default="cpu")
@@ -110,14 +113,19 @@ def build_parser() -> argparse.Namespace:
 def eval_loss(model, valid, cfg, loss_fn, device):
     model.eval()
     with torch.no_grad():
-        n_tokens = min(20_000, len(valid) - cfg.context_length - 1)
-        n_steps = n_tokens // (cfg.batch * cfg.context_length)
+        rng_state = random.getstate()
+        np_state = np.random.get_state()
+        n_tokens = len(valid) - cfg.context_length - 1
+        n_steps = math.ceil(n_tokens / (cfg.batch * cfg.context_length))
         losses = []
-        for _ in range(max(1, n_steps)):
+        for _ in range(n_steps):
             input_batch, target_batch = get_batch(valid, cfg.batch, cfg.context_length, str(device))
             logits = model(input_batch)
             loss = loss_fn(logits, target_batch)
             losses.append(loss.item())
+        
+        random.setstate(rng_state)
+        np.random.set_state(np_state)
     model.train()
     return float(np.mean(losses))
 
@@ -150,12 +158,16 @@ def train(cfg):
         residual_pdrop=cfg.residual_pdrop,
     ).to(device)
 
-    # === TOKENIZER (for sample generation) ===
+    logging.info("Initializing tokenizer (for the sample generation)")
     tokenizer = Tokenizer.from_files(cfg.vocab_path, cfg.merges_path, [cfg.special_tokens])
 
-    # === OPTIMIZER ===
+    logging.info("Initializing optimizer")
     beta1, beta2 = (float(b) for b in cfg.betas.split(","))
-    opt = AdamW(model.parameters(), lr=cfg.lr, betas=(beta1, beta2), weight_decay=cfg.weight_decay)
+    # unique_params = list({id(p): p for p in model.parameters()}.values())
+    # opt = AdamW(unique_params, lr=cfg.lr, betas=(beta1, beta2),
+    #             weight_decay=cfg.weight_decay)
+    opt = AdamW(model.parameters(), lr=cfg.lr, betas=(beta1, beta2),
+                weight_decay=cfg.weight_decay)
 
     # === CHECKPOINT ===
     Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
@@ -163,11 +175,11 @@ def train(cfg):
     global_step = 0
     if cfg.resume and checkpoint_path.exists():
         global_step = load_checkpoint(checkpoint_path, model, opt)
-        print(f"[resume] step {global_step}")
+        logging.info(f"[resume] step {global_step}")
 
     # === TRAIN LOOP ===
     n_tokens_per_batch = cfg.batch * cfg.context_length
-    print(f"total steps: {cfg.steps} | ~tokens: {cfg.steps * n_tokens_per_batch:,}")
+    logging.info(f"total steps: {cfg.steps} | ~tokens: {cfg.steps * n_tokens_per_batch:,}")
 
     running_loss = 0.0
     loss_window = 10
@@ -206,7 +218,7 @@ def train(cfg):
             avg_loss = running_loss / loss_window
             ppl = math.exp(avg_loss)
             elapsed = time.time() - step_start_time
-            print(f"Step {global_step}/{cfg.steps} | loss {avg_loss:6.4f} | ppl {ppl:7.2f} | {elapsed:5.1f}s")
+            logging.info(f"Step {global_step}/{cfg.steps} | loss {avg_loss:6.4f} | ppl {ppl:7.2f} | {elapsed:5.1f}s")
             if use_wandb:
                 wandb.log({"train/loss": avg_loss, "train/ppl": ppl, "lr": lr, "step": global_step})
             running_loss = 0.0
@@ -216,21 +228,21 @@ def train(cfg):
         if cfg.valid_bin and (global_step % cfg.eval_every_steps == 0 or global_step == cfg.steps):
             v_loss = eval_loss(model, valid_data, cfg, cross_entropy_fn, device)
             v_ppl = math.exp(v_loss)
-            print(f"[val @ step {global_step}] loss {v_loss:6.4f} | ppl {v_ppl:7.2f}")
+            logging.info(f"[val @ step {global_step}] loss {v_loss:6.4f} | ppl {v_ppl:7.2f}")
             if use_wandb:
                 wandb.log({"val/loss": v_loss, "val/ppl": v_ppl, "step": global_step})
 
         # === checkpoint ===
         if global_step % cfg.save_every_steps == 0 or global_step == cfg.steps:
             save_checkpoint(model, opt, global_step, checkpoint_path)
-            print(f"[checkpoint] saved {checkpoint_path} @ step {global_step}")
+            logging.info(f"[checkpoint] saved {checkpoint_path} @ step {global_step}")
             if use_wandb:
                 wandb.save(str(checkpoint_path))
 
         # === qualitative generation ===
         if cfg.prompt and (global_step % cfg.eval_every_steps == 0):
             sample = generate_text(cfg.prompt, model, tokenizer, cfg.max_tokens, cfg.temperature, cfg.top_p)
-            print(f"\nGenerated sample @ step {global_step}:\n{sample}\n")
+            logging.info(f"\nGenerated sample @ step {global_step}:\n{sample}\n")
             if cfg.generated_text_path is not None:
                 write_to_logging(
                     sample,
@@ -243,7 +255,7 @@ def train(cfg):
 
     # === final save ===
     save_checkpoint(model, opt, global_step, checkpoint_path)
-    print("Training done – final model in", checkpoint_path)
+    logging.info("Training done – final model in", checkpoint_path)
     if use_wandb:
         wandb.finish()
 
