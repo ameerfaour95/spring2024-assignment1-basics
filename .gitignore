@@ -6,3 +6,6 @@ cs336_basics.egg-info/
 
 .vscode/settings.json
 .vscode/launch.json
+.DS_Store
+checkpoints/latest.pt
+cs336_basics/trainer_args.json
